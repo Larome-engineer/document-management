@@ -89,8 +89,6 @@ public class DocumentServiceImpl implements DocumentService {
 
                 System.out.println("Документ был успешно сохранен!");
             }
-        } else {
-            throw new NullPointerException();
         }
 
     }
