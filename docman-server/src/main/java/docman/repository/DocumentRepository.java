@@ -13,6 +13,7 @@ public interface DocumentRepository extends JpaRepository<Document, Integer> {
 
     List<Document> findAllByCreateDate(Date createDate);
     Optional<Document> findDocumentByDocumentCode(int documentCode);
-    Optional<Document> findDocumentByDocumentName(String documentName);
+    List<Document> findDocumentByDocumentName(String documentName);
+    void deleteDocumentByDocumentCode(int documentCode);
 
 }

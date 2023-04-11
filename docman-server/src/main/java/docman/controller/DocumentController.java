@@ -3,9 +3,10 @@ package docman.controller;
 import docman.model.Document;
 import docman.service.DocumentServiceImpl;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -18,32 +19,36 @@ public class DocumentController {
     private final DocumentServiceImpl documentService;
 
     public List<Document> findAllDocuments() {
-        return documentService.findAllDocuments();
+        return null; // pass...
     }
 
     public List<Document> findAllDocumentsByCreateDate(Date createDate) {
-        return documentService.findDocumentsByCreateDate(createDate);
+        return null; // pass...
     }
 
     public Optional<Document> findDocumentById(int id) {
-        return documentService.findDocumentById(id);
+        return null; // pass...
     }
 
-    public Optional<Document> findDocumentByDocumentName(String documentName) {
-        return documentService.findDocumentByDocumentName(documentName);
+    public List<Document> findDocumentByDocumentName(String documentName) {
+        return null; // pass...
     }
 
-    public Optional<Document> findDocumentByDocumentCode(int documentCode) {
+    @GetMapping("/byCode/{documentCode}")
+    public Optional<Document> findDocumentByDocumentCode(@PathVariable("documentCode") int documentCode) {
         return documentService.findDocumentByDocumentCode(documentCode);
     }
 
-    public void createDocument(Document document) {
-        documentService.createDocument(document);
+    @PostMapping("/addDocument")
+    public void addDocument(@RequestParam("file") MultipartFile file) throws IOException {
+        documentService.createDocument(file);
     }
-    public void updateDocument(Document updatedDocument, String documentName){
-        documentService.updateDocument(updatedDocument, documentName);
+
+    public void updateDocument(Document updatedDocument, int documentName) {
+        // pass...
     }
-    public void deleteDocument(String documentName){
-        documentService.deleteDocument(documentName);
+
+    public void deleteDocument(int documentCode) {
+        // pass...
     }
 }
