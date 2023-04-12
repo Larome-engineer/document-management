@@ -1,13 +1,14 @@
 package docman.controller;
 
+import docman.dto.DocumentResponse;
 import docman.model.Document;
 import docman.service.DocumentServiceImpl;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import org.modelmapper.ModelMapper;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,38 +18,76 @@ import java.util.Optional;
 public class DocumentController {
 
     private final DocumentServiceImpl documentService;
+    private final ModelMapper modelMapper;
 
-    public List<Document> findAllDocuments() {
-        return null; // pass...
+    @GetMapping
+    public List<DocumentResponse> findAllDocuments() {
+        return documentService
+                .findAllDocuments()
+                .stream()
+                .map(this::mapDocumentToResponse)
+                .toList();
     }
 
-    public List<Document> findAllDocumentsByCreateDate(Date createDate) {
-        return null; // pass...
+    @GetMapping("/byCreate/{createDate}")
+    @SneakyThrows
+    public List<DocumentResponse> findAllDocumentsByCreateDate(@PathVariable("createDate") String createDate) {
+        return documentService
+                .findDocumentsByCreateDate(createDate)
+                .stream()
+                .map(this::mapDocumentToResponse)
+                .toList();
     }
 
-    public Optional<Document> findDocumentById(int id) {
-        return null; // pass...
+    @GetMapping("/byUpdate/{updateDate}")
+    public List<DocumentResponse> findAllDocumentsByUpdateDate(@PathVariable("updateDate") String updateDate) {
+        return documentService
+                .findDocumentsByUpdateDate(updateDate)
+                .stream()
+                .map(this::mapDocumentToResponse)
+                .toList();
     }
 
-    public List<Document> findDocumentByDocumentName(String documentName) {
-        return null; // pass...
+    @GetMapping("/byId/{documentId}")
+    public Optional<DocumentResponse> findDocumentById(@PathVariable("documentId") int id) {
+        return documentService
+                .findDocumentById(id)
+                .map(this::mapDocumentToResponse);
+    }
+
+    @GetMapping("/byName/{documentName}")
+    public List<DocumentResponse> findDocumentByDocumentName(@PathVariable("documentName") String documentName) {
+        return documentService
+                .findDocumentByDocumentName(documentName)
+                .stream()
+                .map(this::mapDocumentToResponse)
+                .toList();
     }
 
     @GetMapping("/byCode/{documentCode}")
-    public Optional<Document> findDocumentByDocumentCode(@PathVariable("documentCode") int documentCode) {
-        return documentService.findDocumentByDocumentCode(documentCode);
+    public Optional<DocumentResponse> findDocumentByDocumentCode(@PathVariable("documentCode") int documentCode) {
+        return documentService
+                .findDocumentByDocumentCode(documentCode)
+                .map(this::mapDocumentToResponse);
     }
 
     @PostMapping("/addDocument")
-    public void addDocument(@RequestParam("file") MultipartFile file) throws IOException {
+    public void addDocument(@RequestParam("file") MultipartFile file) {
         documentService.createDocument(file);
     }
 
-    public void updateDocument(Document updatedDocument, int documentName) {
-        // pass...
+    @PatchMapping("/updateDocument/{code}")
+    public void updateDocument(@RequestParam("file") MultipartFile file, @PathVariable("code") int documentCode) {
+        documentService.updateDocument(file, documentCode);
     }
 
-    public void deleteDocument(int documentCode) {
-        // pass...
+    @DeleteMapping("/deleteDocument/{code}")
+    public void deleteDocument(@PathVariable("code") int documentCode) {
+        documentService.deleteDocument(documentCode);
+    }
+
+    private DocumentResponse mapDocumentToResponse(Document document) {
+        return modelMapper.map(document, DocumentResponse.class);
     }
 }
+

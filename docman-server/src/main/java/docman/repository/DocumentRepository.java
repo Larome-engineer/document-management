@@ -11,9 +11,10 @@ import java.util.Optional;
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, Integer> {
 
-    List<Document> findAllByCreateDate(Date createDate);
+    List<Document> findAllByCreateDateBetween(Date createDateStart, Date createDateEnd);
+    List<Document> findAllByUpdateDateBetween(Date updateDateStart, Date updateDateEnd);
     Optional<Document> findDocumentByDocumentCode(int documentCode);
-    List<Document> findDocumentByDocumentName(String documentName);
+    List<Document> findAllByDocumentName(String documentName);
     void deleteDocumentByDocumentCode(int documentCode);
 
 }

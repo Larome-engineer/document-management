@@ -1,8 +1,6 @@
 package docman.service;
 
-import docman.exception.DocumentAlreadyExist;
-import docman.exception.NotValidCodeValue;
-import docman.exception.NotValidDocumentName;
+import docman.exception.*;
 import docman.model.Document;
 import docman.repository.DocumentRepository;
 import docman.service.interfaces.DocumentService;
@@ -14,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -30,29 +29,74 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     public List<Document> findAllDocuments() {
-        return documentRepository.findAll();
+        List<Document> documents = documentRepository.findAll();
+        if (documents.isEmpty()) {
+            throw new EmptyDataException("Нет загруженных документов");
+        } else {
+            return documents;
+        }
     }
 
     @Override
-    public List<Document> findDocumentsByCreateDate(Date createDate) {
-        return documentRepository.findAllByCreateDate(createDate);
+    @SneakyThrows
+    public List<Document> findDocumentsByCreateDate(String createDate) {
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        Date dateStart = simpleDateFormat.parse(createDate+" 00:00:00.000");
+        Date dateEnd = simpleDateFormat.parse(createDate+" 23:59:59.999");
+
+        List<Document> documentsByCDate = documentRepository.findAllByCreateDateBetween(dateStart, dateEnd);
+        if (documentsByCDate.isEmpty()) {
+            throw new EmptyDataException("Нет загруженных документов по дате: " + createDate);
+        } else {
+
+            return documentsByCDate;
+        }
+    }
+
+    @Override
+    @SneakyThrows
+    public List<Document> findDocumentsByUpdateDate(String updateDate) {
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        Date dateStart = simpleDateFormat.parse(updateDate+" 00:00:00.000");
+        Date dateEnd = simpleDateFormat.parse(updateDate+" 23:59:59.999");
+
+        List<Document> documentsByUDate = documentRepository.findAllByUpdateDateBetween(dateStart, dateEnd);
+        if (documentsByUDate.isEmpty()) {
+            throw new EmptyDataException("Нет загруженных документов по дате: " + updateDate);
+        } else {
+            return documentsByUDate;
+        }
     }
 
     @Override
     public Optional<Document> findDocumentById(int documentId) {
-        return documentRepository.findById(documentId);
+        Optional<Document> documentById = documentRepository.findById(documentId);
+        if (documentById.isPresent()) {
+            return documentById;
+        } else {
+            throw new NoDocumentException("Документа с id: " + documentId + " не существует");
+        }
     }
 
     @Override
     public List<Document> findDocumentByDocumentName(String documentName) {
-        return documentRepository.findDocumentByDocumentName(documentName);
+        List<Document> documentsByName = documentRepository.findAllByDocumentName(documentName);
+        if (documentsByName.isEmpty()) {
+            throw new NoDocumentException("Документа с именем: " + documentsByName + " не существует");
+        } else {
+            return documentsByName;
+        }
     }
 
     @Override
     public Optional<Document> findDocumentByDocumentCode(int documentCode) {
-        return documentRepository.findDocumentByDocumentCode(documentCode);
+        Optional<Document> documentByCode = documentRepository.findDocumentByDocumentCode(documentCode);
+        if (documentByCode.isPresent()) {
+            return documentByCode;
+        } else {
+            throw new NoDocumentException("Документа с кодом: " + documentCode + " не существует");
+        }
     }
-
 
     @Override
     @Transactional
@@ -86,28 +130,37 @@ public class DocumentServiceImpl implements DocumentService {
                 enrichDocumentData(document);
                 file.transferTo(new File(uploadPath + "\\" + filename));
                 documentRepository.save(document);
-
-                System.out.println("Документ был успешно сохранен!");
             }
         }
-
     }
 
     @Override
     @Transactional
-    public void updateDocument(Document updatedDocument, int documentCode) {
+    @SneakyThrows
+    public void updateDocument(MultipartFile file, int documentCode) {
         Optional<Document> document = documentRepository.findDocumentByDocumentCode(documentCode);
-        document.ifPresent(value -> updatedDocument.setDocumentId(value.getDocumentId()));
-        // ...
-        // Метод находится в доработке
-        documentRepository.save(updatedDocument);
+        if (document.isPresent() && file != null) {
+
+            String filename = file.getOriginalFilename();
+            file.transferTo(new File(uploadPath + "\\" + filename));
+            document.get().setUpdateDate(new Date());
+            document.get().setDocumentName(document.get().getDocumentName());
+
+            documentRepository.save(document.get());
+        }
     }
 
     @Override
     @Transactional
     public void deleteDocument(int documentCode) {
-        documentRepository.deleteDocumentByDocumentCode(documentCode);
-
+        Optional<Document> document = documentRepository.findDocumentByDocumentCode(documentCode);
+        if (document.isPresent()) {
+            File file = new File(uploadPath+ "\\" + documentCode + "." + document.get().getDocumentName());
+            file.delete();
+            documentRepository.deleteDocumentByDocumentCode(documentCode);
+        } else {
+            throw new NoDocumentException("Документа с кодом: " + documentCode + " не существует");
+        }
     }
 
     private void enrichDocumentData(Document document) {

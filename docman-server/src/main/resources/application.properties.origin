@@ -1,0 +1,7 @@
+spring.datasource.driver-class-name=
+spring.datasource.url=
+spring.datasource.username=
+spring.datasource.password=
+
+
+upload.path=
