@@ -2,7 +2,7 @@ package docman.controller;
 
 import docman.dto.DocumentResponse;
 import docman.model.Document;
-import docman.service.DocumentServiceImpl;
+import docman.service.interfaces.DocumentService;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.modelmapper.ModelMapper;
@@ -13,26 +13,25 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/document")
+@RequestMapping("/api/documents")
 @RequiredArgsConstructor
 public class DocumentController {
 
-    private final DocumentServiceImpl documentService;
+    private final DocumentService service;
     private final ModelMapper modelMapper;
 
     @GetMapping
     public List<DocumentResponse> findAllDocuments() {
-        return documentService
+        return service
                 .findAllDocuments()
                 .stream()
                 .map(this::mapDocumentToResponse)
                 .toList();
     }
-
     @GetMapping("/byCreate/{createDate}")
     @SneakyThrows
     public List<DocumentResponse> findAllDocumentsByCreateDate(@PathVariable("createDate") String createDate) {
-        return documentService
+        return service
                 .findDocumentsByCreateDate(createDate)
                 .stream()
                 .map(this::mapDocumentToResponse)
@@ -41,7 +40,7 @@ public class DocumentController {
 
     @GetMapping("/byUpdate/{updateDate}")
     public List<DocumentResponse> findAllDocumentsByUpdateDate(@PathVariable("updateDate") String updateDate) {
-        return documentService
+        return service
                 .findDocumentsByUpdateDate(updateDate)
                 .stream()
                 .map(this::mapDocumentToResponse)
@@ -50,44 +49,43 @@ public class DocumentController {
 
     @GetMapping("/byId/{documentId}")
     public Optional<DocumentResponse> findDocumentById(@PathVariable("documentId") int id) {
-        return documentService
+        return service
                 .findDocumentById(id)
                 .map(this::mapDocumentToResponse);
     }
 
     @GetMapping("/byName/{documentName}")
-    public List<DocumentResponse> findDocumentByDocumentName(@PathVariable("documentName") String documentName) {
-        return documentService
+    public Optional<DocumentResponse> findDocumentByDocumentName(@PathVariable("documentName") String documentName) {
+        return service
                 .findDocumentByDocumentName(documentName)
+                .map(this::mapDocumentToResponse);
+    }
+
+    @GetMapping("/byCode/{documentCode}")
+    public List<DocumentResponse> findDocumentsByDocumentCode(@PathVariable("documentCode") String documentCode) {
+        return service
+                .findDocumentsByDocumentCode(documentCode)
                 .stream()
                 .map(this::mapDocumentToResponse)
                 .toList();
     }
 
-    @GetMapping("/byCode/{documentCode}")
-    public Optional<DocumentResponse> findDocumentByDocumentCode(@PathVariable("documentCode") int documentCode) {
-        return documentService
-                .findDocumentByDocumentCode(documentCode)
-                .map(this::mapDocumentToResponse);
-    }
-
     @PostMapping("/addDocument")
-    public void addDocument(@RequestParam("file") MultipartFile file) {
-        documentService.createDocument(file);
+    public void addDocument(@RequestPart("file") MultipartFile file) {
+        service.createDocument(file);
     }
 
-    @PatchMapping("/updateDocument/{code}")
-    public void updateDocument(@RequestParam("file") MultipartFile file, @PathVariable("code") int documentCode) {
-        documentService.updateDocument(file, documentCode);
+    @PatchMapping("/updateDocument/{name}")
+    public void updateDocument(@RequestParam("file") MultipartFile file, @PathVariable("name") String documentName) {
+        service.updateDocument(file, documentName);
     }
 
-    @DeleteMapping("/deleteDocument/{code}")
-    public void deleteDocument(@PathVariable("code") int documentCode) {
-        documentService.deleteDocument(documentCode);
+    @DeleteMapping("/deleteDocument/{name}")
+    public void deleteDocument(@PathVariable("name") String documentName) {
+        service.deleteDocument(documentName);
     }
 
     private DocumentResponse mapDocumentToResponse(Document document) {
         return modelMapper.map(document, DocumentResponse.class);
     }
 }
-

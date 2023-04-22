@@ -7,15 +7,13 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DocumentService {
-
     List<Document> findAllDocuments();
     List<Document> findDocumentsByCreateDate(String createDate);
     List<Document> findDocumentsByUpdateDate(String updateDate);
     Optional<Document> findDocumentById(int documentId);
-    List<Document> findDocumentByDocumentName(String documentName);
-    Optional<Document> findDocumentByDocumentCode(int documentCode);
+    Optional<Document> findDocumentByDocumentName(String documentName);
+    List<Document> findDocumentsByDocumentCode(String documentCode);
     void createDocument(MultipartFile file);
-    void updateDocument(MultipartFile file, int documentCode);
-    void deleteDocument(int documentCode);
-
+    void updateDocument(MultipartFile file, String documentName);
+    void deleteDocument(String documentName);
 }

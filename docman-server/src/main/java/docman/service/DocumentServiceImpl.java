@@ -1,6 +1,9 @@
 package docman.service;
 
-import docman.exception.*;
+import docman.exception.DocumentAlreadyExist;
+import docman.exception.EmptyDataException;
+import docman.exception.NoDocumentException;
+import docman.exception.NotValidDocumentName;
 import docman.model.Document;
 import docman.repository.DocumentRepository;
 import docman.service.interfaces.DocumentService;
@@ -13,15 +16,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DocumentServiceImpl implements DocumentService {
-
     private final DocumentRepository documentRepository;
 
     @Value(value = "${upload.path}") // Путь к серверу, где лежат документы.
@@ -41,8 +41,8 @@ public class DocumentServiceImpl implements DocumentService {
     @SneakyThrows
     public List<Document> findDocumentsByCreateDate(String createDate) {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-        Date dateStart = simpleDateFormat.parse(createDate+" 00:00:00.000");
-        Date dateEnd = simpleDateFormat.parse(createDate+" 23:59:59.999");
+        Date dateStart = simpleDateFormat.parse(createDate + " 00:00:00.000");
+        Date dateEnd = simpleDateFormat.parse(createDate + " 23:59:59.999");
 
         List<Document> documentsByCDate = documentRepository.findAllByCreateDateBetween(dateStart, dateEnd);
         if (documentsByCDate.isEmpty()) {
@@ -57,8 +57,8 @@ public class DocumentServiceImpl implements DocumentService {
     @SneakyThrows
     public List<Document> findDocumentsByUpdateDate(String updateDate) {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-        Date dateStart = simpleDateFormat.parse(updateDate+" 00:00:00.000");
-        Date dateEnd = simpleDateFormat.parse(updateDate+" 23:59:59.999");
+        Date dateStart = simpleDateFormat.parse(updateDate + " 00:00:00.000");
+        Date dateEnd = simpleDateFormat.parse(updateDate + " 23:59:59.999");
 
         List<Document> documentsByUDate = documentRepository.findAllByUpdateDateBetween(dateStart, dateEnd);
         if (documentsByUDate.isEmpty()) {
@@ -79,8 +79,11 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    public List<Document> findDocumentByDocumentName(String documentName) {
-        List<Document> documentsByName = documentRepository.findAllByDocumentName(documentName);
+    public Optional<Document> findDocumentByDocumentName(String documentName) {
+        String docType = documentName.substring(0, 4);
+        Optional<Document> documentsByName = documentRepository
+                .findDocumentByDocumentName("\\ИБ\\"+docType+"\\"+documentName);
+
         if (documentsByName.isEmpty()) {
             throw new NoDocumentException("Документа с именем: " + documentsByName + " не существует");
         } else {
@@ -89,9 +92,9 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    public Optional<Document> findDocumentByDocumentCode(int documentCode) {
-        Optional<Document> documentByCode = documentRepository.findDocumentByDocumentCode(documentCode);
-        if (documentByCode.isPresent()) {
+    public List<Document> findDocumentsByDocumentCode(String documentCode) {
+        List<Document> documentByCode = documentRepository.findAllByDocumentCode(documentCode);
+        if (!documentByCode.isEmpty()) {
             return documentByCode;
         } else {
             throw new NoDocumentException("Документа с кодом: " + documentCode + " не существует");
@@ -99,50 +102,41 @@ public class DocumentServiceImpl implements DocumentService {
     }
 
     @Override
-    @Transactional
     @SneakyThrows
+    @Transactional
     public void createDocument(MultipartFile file) {
-        Document document = new Document();
-        if (file != null) {
-            File uploadDir = new File(uploadPath);
+        createDir(file);
 
-            if (!uploadDir.exists()) {
-                uploadDir.mkdir();
-            }
+        String filename = file.getOriginalFilename();
+        String documentCode = filename.substring(5, 11);
+        String docType = filename.substring(0, 4);
+        if (documentRepository.findDocumentByDocumentName("\\ИБ\\"+docType+"\\"+filename).isPresent()) {
+            throw new DocumentAlreadyExist("Такой документ уже существует");
+        }
 
-            String filename = file.getOriginalFilename();
-            assert filename != null;
-            String documentName = filename.substring(7);
-            String documentCode = filename.substring(0, 6);
-
-            try {
-                document.setDocumentCode(Integer.parseInt(documentCode));
-            } catch (Exception e) {
-                throw new NotValidCodeValue("Неккоректный формат кода документа");
-            }
-
-            if (!documentName.matches("[a-zA-Zа-яА-Я]+\\s[0-9]+\\.xls")) {
-                throw new NotValidDocumentName("Неккоректное имя документа");
-            } else if (documentRepository.findDocumentByDocumentCode(Integer.parseInt(documentCode)).isPresent()) {
-                throw new DocumentAlreadyExist("Такой документ уже существует");
-            } else {
-                document.setDocumentName(documentName);
-                enrichDocumentData(document);
-                file.transferTo(new File(uploadPath + "\\" + filename));
-                documentRepository.save(document);
-            }
+        if (!filename.matches("[ИБ]+\\.*[0-9]*\\.[0-9]+\\.[xlsdocpf]+")) {
+            throw new NotValidDocumentName("Неккоректное имя документа");
+        } else if(docType.equals("ИБ.0")) {
+            file.transferTo(new File(uploadPath + "\\ИБ\\" + filename+" (реестр)"));
+        } else {
+            Document document = new Document();
+            enrichDocumentData(document, "\\ИБ\\" + docType + "\\" + filename, documentCode);
+            file.transferTo(new File(uploadPath + "\\ИБ\\" + docType + "\\" + filename));
+            documentRepository.save(document);
         }
     }
 
     @Override
-    @Transactional
     @SneakyThrows
-    public void updateDocument(MultipartFile file, int documentCode) {
-        Optional<Document> document = documentRepository.findDocumentByDocumentCode(documentCode);
-        if (document.isPresent() && file != null) {
+    @Transactional
+    public void updateDocument(MultipartFile file, String documentName) {
+        String docType = documentName.substring(0, 4);
+        Optional<Document> document = documentRepository
+                .findDocumentByDocumentName("\\ИБ\\"+docType+"\\"+documentName);
 
+        if (document.isPresent() && file != null) {
             String filename = file.getOriginalFilename();
-            file.transferTo(new File(uploadPath + "\\" + filename));
+            file.transferTo(new File(uploadPath + "\\ИБ\\"+docType+"\\" + filename));
             document.get().setUpdateDate(new Date());
             document.get().setDocumentName(document.get().getDocumentName());
 
@@ -152,19 +146,39 @@ public class DocumentServiceImpl implements DocumentService {
 
     @Override
     @Transactional
-    public void deleteDocument(int documentCode) {
-        Optional<Document> document = documentRepository.findDocumentByDocumentCode(documentCode);
+    public void deleteDocument(String documentName) {
+        String docType = documentName.substring(0, 4);
+        Optional<Document> document = documentRepository
+                .findDocumentByDocumentName("\\ИБ\\"+docType+"\\"+documentName);
+
         if (document.isPresent()) {
-            File file = new File(uploadPath+ "\\" + documentCode + "." + document.get().getDocumentName());
+            File file = new File(uploadPath + "\\ИБ\\"+docType+"\\"+documentName);
             file.delete();
-            documentRepository.deleteDocumentByDocumentCode(documentCode);
+            documentRepository.deleteDocumentByDocumentName("\\ИБ\\"+docType+"\\"+documentName);
         } else {
-            throw new NoDocumentException("Документа с кодом: " + documentCode + " не существует");
+            throw new NoDocumentException("Документа с именем: " + documentName + " не существует");
         }
     }
 
-    private void enrichDocumentData(Document document) {
+    private void enrichDocumentData(Document document, String docName, String docCode) {
+        document.setDocumentName(docName);
+        document.setDocumentCode(docCode);
         document.setCreateDate(new Date());
         document.setUpdateDate(new Date());
     }
+
+    private void createDir(MultipartFile file) {
+        if (file != null) {
+            File uploadDir = new File(uploadPath + "\\ИБ\\ИБ.1");
+            File uploadDir2 = new File(uploadPath + "\\ИБ\\ИБ.2");
+
+            if (!uploadDir.exists() || !uploadDir2.exists()) {
+                uploadDir.mkdirs();
+                uploadDir2.mkdirs();
+            }
+        }
+    }
 }
+
+
+
