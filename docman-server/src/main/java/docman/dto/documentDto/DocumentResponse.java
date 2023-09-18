@@ -1,20 +1,18 @@
-package docman.dto;
+package docman.dto.documentDto;
 
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
 
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class DocumentResponse {
 
-    private String documentCode;
     private String documentName;
     private Date createDate;
     private Date updateDate;

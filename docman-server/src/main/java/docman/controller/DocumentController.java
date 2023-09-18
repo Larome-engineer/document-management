@@ -1,11 +1,11 @@
 package docman.controller;
 
-import docman.dto.DocumentResponse;
-import docman.model.Document;
-import docman.service.interfaces.DocumentService;
+import docman.dto.documentDto.DocumentResponse;
+import docman.model.documentEntities.Document;
+import docman.service.documentService.interfaces.DocumentService;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.modelmapper.ModelMapper;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,7 +18,6 @@ import java.util.Optional;
 public class DocumentController {
 
     private final DocumentService service;
-    private final ModelMapper modelMapper;
 
     @GetMapping
     public List<DocumentResponse> findAllDocuments() {
@@ -28,6 +27,15 @@ public class DocumentController {
                 .map(this::mapDocumentToResponse)
                 .toList();
     }
+
+    @GetMapping("/byCode")
+    public Optional<DocumentResponse> findDocumentByCodeAndType(@RequestParam("type") String type,
+                                                                @RequestParam("number") String number) {
+        return service
+                .findDocumentByCodeAndType(type, number)
+                .map(this::mapDocumentToResponse);
+    }
+
     @GetMapping("/byCreate/{createDate}")
     @SneakyThrows
     public List<DocumentResponse> findAllDocumentsByCreateDate(@PathVariable("createDate") String createDate) {
@@ -48,6 +56,7 @@ public class DocumentController {
     }
 
     @GetMapping("/byId/{documentId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EXPERT')")
     public Optional<DocumentResponse> findDocumentById(@PathVariable("documentId") int id) {
         return service
                 .findDocumentById(id)
@@ -61,31 +70,23 @@ public class DocumentController {
                 .map(this::mapDocumentToResponse);
     }
 
-    @GetMapping("/byCode/{documentCode}")
-    public List<DocumentResponse> findDocumentsByDocumentCode(@PathVariable("documentCode") String documentCode) {
-        return service
-                .findDocumentsByDocumentCode(documentCode)
-                .stream()
-                .map(this::mapDocumentToResponse)
-                .toList();
-    }
-
     @PostMapping("/addDocument")
+    @PreAuthorize("hasAnyRole('EXPERT', 'ADMIN')")
     public void addDocument(@RequestPart("file") MultipartFile file) {
         service.createDocument(file);
     }
 
     @PatchMapping("/updateDocument/{name}")
+    @PreAuthorize("hasAnyRole('EXPERT', 'ADMIN')")
     public void updateDocument(@RequestParam("file") MultipartFile file, @PathVariable("name") String documentName) {
         service.updateDocument(file, documentName);
     }
 
-    @DeleteMapping("/deleteDocument/{name}")
-    public void deleteDocument(@PathVariable("name") String documentName) {
-        service.deleteDocument(documentName);
-    }
-
     private DocumentResponse mapDocumentToResponse(Document document) {
-        return modelMapper.map(document, DocumentResponse.class);
+        return DocumentResponse.builder()
+                .documentName(document.getDocumentName().substring(9))
+                .createDate(document.getCreateDate())
+                .updateDate(document.getUpdateDate())
+                .build();
     }
 }

@@ -1,4 +1,4 @@
-package docman.exception;
+package docman.exception.documentException;
 
 public class EmptyDataException extends RuntimeException {
     public EmptyDataException(String message) {
